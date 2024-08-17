@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 #API ayarlanması
-evds = evdsAPI("W80RoZnn8U")
+evds = evdsAPI("*******")
 
 #Ana kategorileri çekilmesi
 main_categories_df = evds.main_categories
