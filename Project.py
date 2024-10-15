@@ -1,103 +1,50 @@
 import streamlit as st
-import pandas as pd 
-import numpy as np 
+import pandas as pd
 from evds import evdsAPI
-import altair as alt
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
+from data_function import select_and_process_data
 
-#API ayarlanması
+# API ayarlanması
 evds = evdsAPI("********")
 
-#Ana kategorileri çekilmesi
+# Ana kategorileri çekilmesi
 main_categories_df = evds.main_categories
-
-
 
 st.title("EVDS PROJECT")
 
 
 try:
-    page = st.sidebar.selectbox("Seçiniz:", ["Veri Analizi","ML Çalışması"], index=None)
-
+    page = st.sidebar.selectbox("Seçiniz:", ["Veri Analizi", "Zaman Serisi Çalışması"], index=None)
 
     if page == "Veri Analizi":
-        #ana kategorideki başlıklardan birinin kullanı tarafından seçilmesi
-        selected_main_title = st.selectbox("Konu başlığını seçin", main_categories_df.iloc[:,1], index= None)
+        # Fonksiyonu çağırarak veri seçimi ve işleme
+        df_page_1, serie_code_update = select_and_process_data(main_categories_df, evds)
+
+        if df_page_1 is not None and serie_code_update is not None:
+            # df'i tablo olarak gösterme
+            st.dataframe(df_page_1.T, height=100)
+            
+            # Grafiğini çizdirme
+            st.line_chart(df_page_1[serie_code_update])
+
+            # Tanımlayıcı istatistikleri hesaplayıp yazdırma
+            mean = df_page_1[serie_code_update].mean()
+            std = df_page_1[serie_code_update].std()
+            variance = df_page_1[serie_code_update].var()
+            results_stat = pd.DataFrame({
+                "stats": ["mean", "standart deviation", "variance"],
+                "value": [mean, std, variance]
+            })
+            results_stat["value"] = results_stat["value"].apply(lambda x: round(x, 2))
+            st.dataframe(results_stat.T)
+
+    elif page == "Zaman Serisi Çalışması":
+        st.write("Zaman Serisi Çalışması sayfası :)")
+        # Zaman Serisi Çalışması için fonksiyonu kullanma
+        df_page_2, serie_code_update = select_and_process_data(main_categories_df, evds)
+
+
+
         
-        if selected_main_title:
-            #category_id değeri seçilen konu başlığınıa göre alınır.
-            category_id = main_categories_df.loc[main_categories_df["TOPIC_TITLE_TR"] == selected_main_title, "CATEGORY_ID"].values[0]
-            category_id = int(category_id)
-        
-            #category_id değeri ile sub categori değerleri belirlenir.
-            sub_category_df = evds.get_sub_categories(category_id)
-            #sub category değeri kullanıcıya seçtirtilir.
-            selected_sub_category = st.selectbox("Konu başlığını seçin", sub_category_df.iloc[:,2],index=None)
-        
-            if selected_sub_category:
-                #Seçilen sub category değeri ile group code belirlenir
-                selected_group_code = sub_category_df.loc[sub_category_df["DATAGROUP_NAME"] == selected_sub_category, "DATAGROUP_CODE"].values[0]
-                #Belirlenen group code değeri ile series değerleri belirlenir.
-                series_values_df = evds.get_series(selected_group_code)
-                #Belirlenen series değerleri kullanıcıya seçtirtilir.
-                selected_series = st.selectbox("seriyi seçin", series_values_df.iloc[:,1], index=None)
-
-                if selected_series:
-
-                    #seçilen series'in serie code'u belirlenir.
-                    serie_code = series_values_df.loc[series_values_df["SERIE_NAME"] == selected_series , "SERIE_CODE"].values[0]
-                    if serie_code:
-                        #Başlangıç tarihinin alınması
-                        start_date = series_values_df.loc[series_values_df["SERIE_NAME"] == selected_series, "START_DATE"].values[0]
-                        st.write(start_date) 
-                        
-                        #Belirlenen series code ile df tanımlanır.
-                        #df = evds.get_data([serie_code], startdate=f"{start_date}", enddate="20-08-2024")
-                        df = evds.get_data([serie_code], startdate="01-01-2020", enddate="20-08-2024")
-                        
-                        #data_name = df.columns[1]
-
-                        #-Veri setini formatının hazırlanması
-                        df["Tarih"] = pd.to_datetime(df["Tarih"], format="mixed")
-                        df = df.sort_values(by="Tarih")
-                        df.set_index("Tarih", inplace=True)
-
-                        #-NaN değerleri doldurma.
-                        if df.isna().values.any():
-                            df = df.ffill()
-                        #-Hala NaN değer varsa bunları kaldırma
-                        df = df.dropna()
-                        
-
-                        #df'i tablo olarak gösterme
-                        st.dataframe(df.T)
-
-                        #-Grafiğini çizdirme
-                        st.line_chart(df)
-                        
-
-
-    elif page == "ML Çalışması":
-        st.write("ML Çalışması sayfası :)")
-
-
-
 
 except Exception as e:
-    st.write("Hata Ayrıntısı:", e) 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    st.write("Hata Ayrıntısı:", e)
